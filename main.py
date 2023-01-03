@@ -1,3 +1,4 @@
+import re
 import socket
 import ssl
 import time
@@ -224,6 +225,8 @@ def tag(source_tag, get_tag, soup, url_netloc):
         # print(f'{url_netloc}-{parsed_tag.netloc}')
         if parsed_tag.netloc and url_netloc != parsed_tag.netloc:
             phishing_count += 1
+
+        # For url_of_anchor # 14
         if source_tag == "a" and (
             tag[get_tag].startswith("#")
             or tag[get_tag].startswith("javascript")
@@ -366,6 +369,70 @@ def abnormal_url(url):
     return phishing
 
 
+# 19
+# 4.3.1 Redirect
+def redirect(url):
+    print("###  redirect: " + url + "  ####")
+    r = requests.get(url)
+    print(r.history)
+    if len(r.history) > 1:
+        return suspicious
+    else:
+        return legitimate
+
+
+# 20
+# 4.3.2 on_mouseover
+def on_mouseover(url):
+    print("###  on_mouseover: " + url + "  ####")
+    home_page = requests.get(url)
+    # window.defaultStatus/window.status should be used for changing the status bar
+    # onMouseOver must use one of them directly or via JavaScript
+    w_status = re.findall(r"window.status", home_page.text)
+    w_default_status = re.findall(r"window.defaultStatus", home_page.text)
+    if w_status or w_default_status:
+        return phishing
+    return legitimate
+
+
+# 21
+# 4.3.3 RightClick
+def right_click(url):
+    print("###  right_click: " + url + "  ####")
+    home_page = requests.get(url)
+    right_click_event = re.findall(r"event.button ?== ?2", home_page.text)
+    if right_click_event:
+        return phishing
+    return legitimate
+
+
+# 22
+# 4.3.4 popUpWidnow
+def popUpWidnow(url):
+    print("###  popUpWidnow: " + url + "  ####")
+    home_page = requests.get(url)
+    # Checks only window popup and not window popup with a form
+    popup_win = re.findall(r"window.open", home_page.text)
+    if popup_win:
+        return phishing
+    return legitimate
+
+
+# 23
+# 4.3.5 Iframe
+def Iframe(url):
+    print("###  Iframe: " + url + "  ####")
+    home_page = requests.get(url)
+    soup = BeautifulSoup(home_page.content, "html.parser")
+
+    # frameBorder is deprected in html5
+    frameBorders = soup.find_all("iframe", {"frameBorder": "0"})
+    borders = soup.find_all("iframe", {"style": "border:none;"})
+    borders = borders + soup.find_all("iframe", {"style": "border:0;"})
+    if frameBorders or borders:
+        return phishing
+    return legitimate
+
 
 # Test
 print(having_Sub_Domain("https://www.google.co.il.ru"))
@@ -395,3 +462,24 @@ print(
     )
 )
 print(abnormal_url("https://www.walla.co.il"))
+print(redirect("https://www.walla.com"))
+print(
+    on_mouseover(
+        "https://www.w3schools.com/jsref/tryit.asp?filename=tryjsref_onmouseover"
+    )
+)
+print(
+    right_click(
+        "https://www.w3schools.com/jsref/tryit.asp?filename=tryjsref_onmouseover"
+    )
+)
+print(
+    popUpWidnow(
+        "https://www.w3schools.com/jsref/tryit.asp?filename=tryjsref_win_open"
+    )
+)
+print(
+    Iframe(
+        "https://www.w3schools.com/html/tryit.asp?filename=tryhtml_iframe_frameborder"
+    )
+)
