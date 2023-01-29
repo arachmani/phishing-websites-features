@@ -1,3 +1,4 @@
+import logging
 import re
 import socket
 import ssl
@@ -20,7 +21,7 @@ phishing = -1
 # 1
 # 4.1.1 having_IP_Address:
 def having_ip_address(url):
-    print("###  having_ip_address: " + url + "  ####")
+    logging.info("###  having_ip_address: " + url + "  ####")
     parsed_url = urlparse(url)
     try:
         netaddr.IPAddress(parsed_url.netloc)
@@ -32,7 +33,7 @@ def having_ip_address(url):
 # 2
 # 4.1.2 URL_Length
 def url_length(url):
-    print("###  URL_Length: " + url + "  ####")
+    logging.info("###  URL_Length: " + url + "  ####")
     if len(url) < 54:
         return legitimate
     elif len(url) > 75:
@@ -44,7 +45,7 @@ def url_length(url):
 # 3
 # 4.1.3 Shortining_Service
 def shortining_Service(url):
-    print("###  shortining_Service: " + url + "  ####")
+    logging.info("###  shortining_Service: " + url + "  ####")
     parsed_url = urlparse(url)
     if parsed_url.netloc == "tinyurl.com":
         return phishing
@@ -55,7 +56,7 @@ def shortining_Service(url):
 # 4
 # 4.1.4 having_At_Symbol
 def having_At_Symbol(url):
-    print("###  having_At_Symbol: " + url + "  ####")
+    logging.info("###  having_At_Symbol: " + url + "  ####")
     if "@" in url:
         return phishing
     else:
@@ -65,7 +66,7 @@ def having_At_Symbol(url):
 # 5
 # 4.1.5 double_slash_redirecting
 def double_slash_redirecting(url):
-    print("###  double_slash_redirecting: " + url + "  ####")
+    logging.info("###  double_slash_redirecting: " + url + "  ####")
     if "//" in url[7:]:
         return phishing
     else:
@@ -75,7 +76,7 @@ def double_slash_redirecting(url):
 # 6
 # 4.1.6 Prefix_Suffix
 def prefix_suffix(url):
-    print("###  prefix_suffix " + url + "  ####")
+    logging.info("###  prefix_suffix " + url + "  ####")
     parsed_url = urlparse(url)
     if "-" in parsed_url.netloc:
         return phishing
@@ -86,7 +87,7 @@ def prefix_suffix(url):
 # 7
 # 4.1.7 having_Sub_Domain
 def having_Sub_Domain(url):
-    print("###  having_Sub_Domain " + url + "  ####")
+    logging.info("###  having_Sub_Domain " + url + "  ####")
     parsed_url = urlparse(url)
     # The first dot after the “www” is omitted
     dot_number = parsed_url.netloc.count(".") - 1
@@ -101,10 +102,10 @@ def having_Sub_Domain(url):
 # 8
 # 4.1.8 SSLfinal_State
 def SSLfinal_State(url):
-    print("###  SSLfinal_State: " + url + "  ####")
+    logging.info("###  SSLfinal_State: " + url + "  ####")
     parsed_url = urlparse(url)
     if parsed_url.scheme == "https":
-        print("- url starts with https")
+        logging.info("- url starts with https")
 
         ctx = ssl.create_default_context()
         with ctx.wrap_socket(
@@ -129,7 +130,9 @@ def SSLfinal_State(url):
             "VeriSign",
         ]
         if issuerOrganizationName in trustedOrgList:
-            print("- Issued is in trusted list - " + issuerOrganizationName)
+            logging.info(
+                "- Issued is in trusted list - " + issuerOrganizationName
+            )
 
             # Calculate time
             seconds_since_epoch = time.time()
@@ -141,23 +144,25 @@ def SSLfinal_State(url):
             delta_in_years = delta_in_sec / 60 / 60 / 24 / 365.25
 
             if delta_in_years >= 1.0:
-                print("- Cert exp date is >= 1 year")
+                logging.info("- Cert exp date is >= 1 year")
                 return legitimate
             else:
-                print("- Cert exp date is < 1 year")
+                logging.info("- Cert exp date is < 1 year")
                 return suspicious
         else:
-            print("- Issued is not in trusted list - " + issuerOrganizationName)
+            logging.info(
+                "- Issued is not in trusted list - " + issuerOrganizationName
+            )
             return suspicious
     else:
-        print("- url doesn't start with https")
+        logging.info("- url doesn't start with https")
         return phishing
 
 
 # 9
 # 4.1.9 domain_registration_length
 def domain_registration_length(url):
-    print("###  domain_registration_length: " + url + "  ####")
+    logging.info("###  domain_registration_length: " + url + "  ####")
     now = datetime.now()
     try:
         w = whois.whois(url)
@@ -171,20 +176,20 @@ def domain_registration_length(url):
         else:
             return phishing
     except Exception as e:
-        print(e)
+        logging.error(e)
         return phishing
 
 
 # 10
 # 4.1.10 Favicon
 def check_favicon(url):
-    print("###  check_favicon: " + url + "  ####")
+    logging.info("###  check_favicon: " + url + "  ####")
     icons = favicon.get(url)
     parsed_url = urlparse(url)
     for icon in icons:
         parsed_icon = urlparse(icon.url)
-        # print(parsed_icon.netloc)
-        # print(parsed_url.netloc)
+        # logging.info(parsed_icon.netloc)
+        # logging.info(parsed_url.netloc)
         if parsed_icon.netloc != parsed_url.netloc:
             return phishing
     return legitimate
@@ -193,27 +198,27 @@ def check_favicon(url):
 # 11
 # 4.1.11 port
 def open_ports(url):
-    print("###  open_ports: " + url + "  ####")
+    logging.info("###  open_ports: " + url + "  ####")
     parsed_url = urlparse(url)
     port_list = [21, 22, 23, 445, 1433, 1521, 3306, 3389]
     host = socket.gethostbyname(parsed_url.netloc)
-    print(host)
+    logging.info(host)
     for port in port_list:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             socket.setdefaulttimeout(1)
             # TODO: Check why first call takes ~ 2 min
             result = s.connect_ex((host, port))
             if result == 0:
-                print(f"Port is opened - {host}:{port}")
+                logging.info(f"Port is opened - {host}:{port}")
                 return phishing
-            print(f"Port is close - {host}:{port}")
+            logging.info(f"Port is close - {host}:{port}")
     return legitimate
 
 
 # 12
 # 4.1.12 HTTPS_token
 def https_token(url):
-    print("###  https_token: " + url + "  ####")
+    logging.info("###  https_token: " + url + "  ####")
     parsed_url = urlparse(url)
     if "https" in parsed_url.netloc:
         return phishing
@@ -226,7 +231,7 @@ def tag(source_tag, get_tag, soup, url_netloc):
     phishing_count = 0
     for tag in tags:
         parsed_tag = urlparse(tag.get(get_tag))
-        # print(f'{url_netloc}-{parsed_tag.netloc}')
+        # logging.info(f'{url_netloc}-{parsed_tag.netloc}')
         if parsed_tag.netloc and url_netloc != parsed_tag.netloc:
             phishing_count += 1
 
@@ -242,7 +247,7 @@ def tag(source_tag, get_tag, soup, url_netloc):
 # 13
 # 4.2.1 Request_URL
 def request_url(url):
-    print("###  request_url: " + url + "  ####")
+    logging.info("###  request_url: " + url + "  ####")
     parsed_url = urlparse(url)
     home_page = requests.get(url)
     soup = BeautifulSoup(home_page.content, "html.parser")
@@ -257,12 +262,12 @@ def request_url(url):
 
     count_all = count_img + count_source + count_audio
     phishing_count = phishy_img_count + phishy_source_count + phishy_audio_count
-    print(f"  count_all: {count_all}, phish_count: {phishing_count}")
+    logging.info(f"  count_all: {count_all}, phish_count: {phishing_count}")
     try:
         if phishing_count / count_all > 0.5:
             return phishing
     except:
-        print("devision error")
+        logging.error("devision error")
         pass
     return legitimate
 
@@ -270,14 +275,14 @@ def request_url(url):
 # 14
 # 4.2.2 URL_of_Anchor
 def url_of_anchor(url):
-    print("###  url_of_anchor: " + url + "  ####")
+    logging.info("###  url_of_anchor: " + url + "  ####")
     parsed_url = urlparse(url)
     home_page = requests.get(url)
     soup = BeautifulSoup(home_page.content, "html.parser")
 
     count_a, phishy_a_count = tag("a", "href", soup, parsed_url.netloc)
 
-    print(f"  count_a: {count_a}, phish_count: {phishy_a_count}")
+    logging.info(f"  count_a: {count_a}, phish_count: {phishy_a_count}")
     try:
         result = phishy_a_count / count_a
         if result > 0.67:
@@ -285,7 +290,7 @@ def url_of_anchor(url):
         elif result <= 0.67 and result >= 0.31:
             return suspicious
     except:
-        print("devision error")
+        logging.error("devision error")
         pass
     return legitimate
 
@@ -293,7 +298,7 @@ def url_of_anchor(url):
 # 15
 # 4.2.3 Links_in_tags
 def links_in_tags(url):
-    print("###  links_in_tags: " + url + "  ####")
+    logging.info("###  links_in_tags: " + url + "  ####")
     parsed_url = urlparse(url)
     home_page = requests.get(url)
     soup = BeautifulSoup(home_page.content, "html.parser")
@@ -308,7 +313,7 @@ def links_in_tags(url):
 
     count_all = count_meta + count_script + count_link
     phishing_count = phishy_meta_count + phishy_script_count + phishy_link_count
-    print(f"  count_all: {count_all}, phish_count: {phishing_count}")
+    logging.info(f"  count_all: {count_all}, phish_count: {phishing_count}")
     try:
         result = phishing_count / count_all
         if result > 0.81:
@@ -316,7 +321,7 @@ def links_in_tags(url):
         elif result <= 0.81 and result >= 0.17:
             return suspicious
     except:
-        print("devision error")
+        logging.error("devision error")
         pass
     return legitimate
 
@@ -324,7 +329,7 @@ def links_in_tags(url):
 # 16
 # 4.2.4 SFH
 def sfh(url):
-    print("###  sfh: " + url + "  ####")
+    logging.info("###  sfh: " + url + "  ####")
     parsed_url = urlparse(url)
     home_page = requests.get(url)
     soup = BeautifulSoup(home_page.content, "html.parser")
@@ -332,7 +337,7 @@ def sfh(url):
     tags = soup.find_all("form")
     for tag in tags:
         parsed_tag = urlparse(tag.get("action"))
-        print(f"{parsed_url.netloc}-{parsed_tag.netloc}")
+        logging.info(f"{parsed_url.netloc}-{parsed_tag.netloc}")
         if not parsed_tag.netloc and (
             parsed_tag.path == "" or parsed_tag.path == "about:blank"
         ):
@@ -345,7 +350,7 @@ def sfh(url):
 # 17
 # 4.2.5 Submitting_to_email
 def submitting_to_email(url):
-    print("###  submitting_to_email: " + url + "  ####")
+    logging.info("###  submitting_to_email: " + url + "  ####")
     parsed_url = urlparse(url)
     home_page = requests.get(url)
     soup = BeautifulSoup(home_page.content, "html.parser")
@@ -360,11 +365,11 @@ def submitting_to_email(url):
 # 18
 # 4.2.6 Abnormal_URL
 def abnormal_url(url):
-    print("###  abnormal_url: " + url + "  ####")
+    logging.info("###  abnormal_url: " + url + "  ####")
     parsed_url = urlparse(url)
     try:
         w = whois.whois(url)
-        print(f"{parsed_url.netloc}-{w.domain_name}")
+        logging.info(f"{parsed_url.netloc}-{w.domain_name}")
         if type(w.domain_name) == list:
             for domain in w.domain_name:
                 if parsed_url.netloc.endswith(domain):
@@ -373,16 +378,16 @@ def abnormal_url(url):
             return legitimate
         return phishing
     except Exception as e:
-        print(e)
+        logging.error(e)
         return phishing
 
 
 # 19
 # 4.3.1 Redirect
 def redirect(url):
-    print("###  redirect: " + url + "  ####")
+    logging.info("###  redirect: " + url + "  ####")
     r = requests.get(url)
-    print(r.history)
+    logging.info(r.history)
     if len(r.history) > 1:
         return suspicious
     else:
@@ -392,7 +397,7 @@ def redirect(url):
 # 20
 # 4.3.2 on_mouseover
 def on_mouseover(url):
-    print("###  on_mouseover: " + url + "  ####")
+    logging.info("###  on_mouseover: " + url + "  ####")
     home_page = requests.get(url)
     # window.defaultStatus/window.status should be used for changing the status bar
     # onMouseOver must use one of them directly or via JavaScript
@@ -406,7 +411,7 @@ def on_mouseover(url):
 # 21
 # 4.3.3 RightClick
 def right_click(url):
-    print("###  right_click: " + url + "  ####")
+    logging.info("###  right_click: " + url + "  ####")
     home_page = requests.get(url)
     right_click_event = re.findall(r"event.button ?== ?2", home_page.text)
     if right_click_event:
@@ -417,7 +422,7 @@ def right_click(url):
 # 22
 # 4.3.4 popUpWidnow
 def popUpWidnow(url):
-    print("###  popUpWidnow: " + url + "  ####")
+    logging.info("###  popUpWidnow: " + url + "  ####")
     home_page = requests.get(url)
     # Checks only window popup and not window popup with a form
     popup_win = re.findall(r"window.open", home_page.text)
@@ -429,7 +434,7 @@ def popUpWidnow(url):
 # 23
 # 4.3.5 Iframe
 def Iframe(url):
-    print("###  Iframe: " + url + "  ####")
+    logging.info("###  Iframe: " + url + "  ####")
     home_page = requests.get(url)
     soup = BeautifulSoup(home_page.content, "html.parser")
 
@@ -445,7 +450,7 @@ def Iframe(url):
 # 24
 # 4.4.1 age_of_domain
 def age_of_domain(url):
-    print("###  age_of_domain: " + url + "  ####")
+    logging.info("###  age_of_domain: " + url + "  ####")
     now = datetime.now()
     try:
         w = whois.whois(url)
@@ -459,14 +464,14 @@ def age_of_domain(url):
         else:
             return phishing
     except Exception as e:
-        print(e)
+        logging.error(e)
         return phishing
 
 
 # 25
 # 4.4.2 DNSRecord
 def DNSRecord(url):
-    print("###  DNSRecord: " + url + "  ####")
+    logging.info("###  DNSRecord: " + url + "  ####")
     try:
         w = whois.whois(url)
         if w.name_servers:
@@ -474,14 +479,14 @@ def DNSRecord(url):
         else:
             return phishing
     except Exception as e:
-        print(e)
+        logging.error(e)
         return phishing
 
 
 # 26
 # 4.4.3 web_traffic
 def web_traffic(url):
-    print("###  web_traffic: " + url + "  ####")
+    logging.info("###  web_traffic: " + url + "  ####")
     home_page = requests.get(
         "http://data.alexa.com/data?cli=10&dat=s&url=" + url
     )
@@ -505,7 +510,7 @@ def web_traffic(url):
 # 28
 # 4.4.5 Google_Index
 def google_index(url):
-    print("###  google_index: " + url + "  ####")
+    logging.info("###  google_index: " + url + "  ####")
     query = f"site:{url}"
     params = {"q": query}
     response = requests.get("https://www.google.com/search", params=params)
@@ -538,59 +543,71 @@ def google_index(url):
 
 #     if response.status_code == 200:
 #         soup = BeautifulSoup(response.content, "html.parser")
-#         print(soup)
+#         logging.info(soup)
 
 
 # Verification
-print(having_Sub_Domain("https://www.google.co.il.ru"))
-print(prefix_suffix("http://www.legi-timate.com"))
-print(
-    double_slash_redirecting(
-        "http://www.legitimate.com//http://www.phishing.com"
+def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(message)s",
+        datefmt="%d-%b-%y %H:%M:%S",
     )
-)
-print(having_At_Symbol("https://tinyurl.com/4sbr2usn"))
-print(shortining_Service("https://tinyurl.com/4sbr2usn"))
-print(url_length("https://www.google.com/"))
-print(having_ip_address("https://www.google.com/"))
-print(SSLfinal_State("https://www.GeoTrust.com"))
-print(domain_registration_length("https://www.google.com"))
-print(check_favicon("https://www.github.com"))
-print(check_favicon("https://www.python.org"))
-print(open_ports("https://www.walla.com"))
-print(https_token("http://https-www-paypal-it-webapps-home.soft-hair.com/"))
-print(request_url("https://walla.com/"))
-print(url_of_anchor("https://www.cisco.com"))
-print(links_in_tags("https://www.cisco.com"))
-print(sfh("https://www.walla.com"))
-print(
-    submitting_to_email(
-        "https://www.w3schools.com/html/tryit.asp?filename=tryhtml_form_mail"
+    logging.info(having_Sub_Domain("https://www.google.co.il.ru"))
+    logging.info(prefix_suffix("http://www.legi-timate.com"))
+    logging.info(
+        double_slash_redirecting(
+            "http://www.legitimate.com//http://www.phishing.com"
+        )
     )
-)
-print(abnormal_url("https://www.walla.co.il"))
-print(redirect("https://www.walla.com"))
-print(
-    on_mouseover(
-        "https://www.w3schools.com/jsref/tryit.asp?filename=tryjsref_onmouseover"
+    logging.info(having_At_Symbol("https://tinyurl.com/4sbr2usn"))
+    logging.info(shortining_Service("https://tinyurl.com/4sbr2usn"))
+    logging.info(url_length("https://www.google.com/"))
+    logging.info(having_ip_address("https://www.google.com/"))
+    logging.info(SSLfinal_State("https://www.GeoTrust.com"))
+    logging.info(domain_registration_length("https://www.google.com"))
+    logging.info(check_favicon("https://www.github.com"))
+    logging.info(check_favicon("https://www.python.org"))
+    logging.info(open_ports("https://www.walla.com"))
+    logging.info(
+        https_token("http://https-www-paypal-it-webapps-home.soft-hair.com/")
     )
-)
-print(
-    right_click(
-        "https://www.w3schools.com/jsref/tryit.asp?filename=tryjsref_onmouseover"
+    logging.info(request_url("https://walla.com/"))
+    logging.info(url_of_anchor("https://www.cisco.com"))
+    logging.info(links_in_tags("https://www.cisco.com"))
+    logging.info(sfh("https://www.walla.com"))
+    logging.info(
+        submitting_to_email(
+            "https://www.w3schools.com/html/tryit.asp?filename=tryhtml_form_mail"
+        )
     )
-)
-print(
-    popUpWidnow(
-        "https://www.w3schools.com/jsref/tryit.asp?filename=tryjsref_win_open"
+    logging.info(abnormal_url("https://www.walla.co.il"))
+    logging.info(redirect("https://www.walla.com"))
+    logging.info(
+        on_mouseover(
+            "https://www.w3schools.com/jsref/tryit.asp?filename=tryjsref_onmouseover"
+        )
     )
-)
-print(
-    Iframe(
-        "https://www.w3schools.com/html/tryit.asp?filename=tryhtml_iframe_frameborder"
+    logging.info(
+        right_click(
+            "https://www.w3schools.com/jsref/tryit.asp?filename=tryjsref_onmouseover"
+        )
     )
-)
-print(age_of_domain("https://www.walla.com"))
-print(DNSRecord("https://www.walla.co.il"))
-print(web_traffic("https://www.galit.co.il"))
-print(google_index("https://www.google.com"))
+    logging.info(
+        popUpWidnow(
+            "https://www.w3schools.com/jsref/tryit.asp?filename=tryjsref_win_open"
+        )
+    )
+    logging.info(
+        Iframe(
+            "https://www.w3schools.com/html/tryit.asp?filename=tryhtml_iframe_frameborder"
+        )
+    )
+    logging.info(age_of_domain("https://www.walla.com"))
+    logging.info(DNSRecord("https://www.walla.co.il"))
+    logging.info(web_traffic("https://www.galit.co.il"))
+    logging.info(google_index("https://www.google.com"))
+
+
+if __name__ == "__main__":
+    main()
