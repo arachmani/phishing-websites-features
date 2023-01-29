@@ -10,8 +10,8 @@ import netaddr
 import requests
 import whois
 from bs4 import BeautifulSoup
-
-hostname = "https://www.google.com/"
+from googlesearch import search
+from random_word import RandomWords
 
 legitimate = 1
 suspicious = 0
@@ -159,15 +159,19 @@ def SSLfinal_State(url):
 def domain_registration_length(url):
     print("###  domain_registration_length: " + url + "  ####")
     now = datetime.now()
-    w = whois.whois(url)
-    if type(w.expiration_date) == list:
-        domain_exp_date = w.expiration_date[0]
-    else:
-        domain_exp_date = w.expiration_date
-    time_delta = domain_exp_date - now
-    if time_delta.days > 365:
-        return legitimate
-    else:
+    try:
+        w = whois.whois(url)
+        if type(w.expiration_date) == list:
+            domain_exp_date = w.expiration_date[0]
+        else:
+            domain_exp_date = w.expiration_date
+        time_delta = domain_exp_date - now
+        if time_delta.days > 365:
+            return legitimate
+        else:
+            return phishing
+    except Exception as e:
+        print(e)
         return phishing
 
 
@@ -358,15 +362,19 @@ def submitting_to_email(url):
 def abnormal_url(url):
     print("###  abnormal_url: " + url + "  ####")
     parsed_url = urlparse(url)
-    w = whois.whois(url)
-    print(f"{parsed_url.netloc}-{w.domain_name}")
-    if type(w.domain_name) == list:
-        for domain in w.domain_name:
-            if parsed_url.netloc.endswith(domain):
-                return legitimate
-    elif parsed_url.netloc.endswith(w.domain_name):
-        return legitimate
-    return phishing
+    try:
+        w = whois.whois(url)
+        print(f"{parsed_url.netloc}-{w.domain_name}")
+        if type(w.domain_name) == list:
+            for domain in w.domain_name:
+                if parsed_url.netloc.endswith(domain):
+                    return legitimate
+        elif parsed_url.netloc.endswith(w.domain_name):
+            return legitimate
+        return phishing
+    except Exception as e:
+        print(e)
+        return phishing
 
 
 # 19
@@ -434,7 +442,106 @@ def Iframe(url):
     return legitimate
 
 
-# Test
+# 24
+# 4.4.1 age_of_domain
+def age_of_domain(url):
+    print("###  age_of_domain: " + url + "  ####")
+    now = datetime.now()
+    try:
+        w = whois.whois(url)
+        if type(w.creation_date) == list:
+            domain_creation_date = w.creation_date[0]
+        else:
+            domain_creation_date = w.creation_date
+        time_delta = now - domain_creation_date
+        if time_delta.days > 30 * 6:  # 30*6 = ~6 months
+            return legitimate
+        else:
+            return phishing
+    except Exception as e:
+        print(e)
+        return phishing
+
+
+# 25
+# 4.4.2 DNSRecord
+def DNSRecord(url):
+    print("###  DNSRecord: " + url + "  ####")
+    try:
+        w = whois.whois(url)
+        if w.name_servers:
+            return legitimate
+        else:
+            return phishing
+    except Exception as e:
+        print(e)
+        return phishing
+
+
+# 26
+# 4.4.3 web_traffic
+def web_traffic(url):
+    print("###  web_traffic: " + url + "  ####")
+    home_page = requests.get(
+        "http://data.alexa.com/data?cli=10&dat=s&url=" + url
+    )
+    pattern = r'REACH RANK="(.*?)"/'
+    match = re.search(pattern, home_page.text)
+
+    if match:
+        url_alexa_rank = int(match.group(1))
+        if url_alexa_rank < 100000:
+            return legitimate
+        else:
+            return suspicious
+    return phishing
+
+
+# 27
+# 4.4.4 Page_Rank
+# google rank page is not exposed
+
+
+# 28
+# 4.4.5 Google_Index
+def google_index(url):
+    print("###  google_index: " + url + "  ####")
+    query = f"site:{url}"
+    params = {"q": query}
+    response = requests.get("https://www.google.com/search", params=params)
+
+    if response.status_code == 200:
+        if "No results found for" in response.text:
+            return phishing
+        else:
+            return legitimate
+    else:
+        return phishing
+
+
+# 29
+# 4.4.6 Links_pointing_to_page
+# Need to own the site or use none free tools
+
+
+# 30
+# 4.4.7 Statistical_report
+# Seems like there are no new reports from the last months on phishtank.
+# StopBadware stopped working around 2021 because of copyright restrictions.
+# def statistical_report():
+#     import pandas as pd
+
+#     year = "2017"
+#     month = "01"
+#     url = f"https://phishtank.org/stats/{year}/{month}/"
+#     response = requests.get(url)
+
+#     if response.status_code == 200:
+#         soup = BeautifulSoup(response.content, "html.parser")
+#         print(soup)
+
+
+# Verification
 print(having_Sub_Domain("https://www.google.co.il.ru"))
 print(prefix_suffix("http://www.legi-timate.com"))
 print(
@@ -444,8 +551,8 @@ print(
 )
 print(having_At_Symbol("https://tinyurl.com/4sbr2usn"))
 print(shortining_Service("https://tinyurl.com/4sbr2usn"))
-print(url_length(hostname))
-print(having_ip_address(hostname))
+print(url_length("https://www.google.com/"))
+print(having_ip_address("https://www.google.com/"))
 print(SSLfinal_State("https://www.GeoTrust.com"))
 print(domain_registration_length("https://www.google.com"))
 print(check_favicon("https://www.github.com"))
@@ -483,3 +590,7 @@ print(
         "https://www.w3schools.com/html/tryit.asp?filename=tryhtml_iframe_frameborder"
     )
 )
+print(age_of_domain("https://www.walla.com"))
+print(DNSRecord("https://www.walla.co.il"))
+print(web_traffic("https://www.galit.co.il"))
+print(google_index("https://www.google.com"))
