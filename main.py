@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import favicon
 import netaddr
 import requests
+import random
 import whois
 from bs4 import BeautifulSoup
 from googlesearch import search
@@ -114,6 +115,8 @@ def SSLfinal_State(url):
         with ctx.wrap_socket(socket.socket(), server_hostname=parsed_url.netloc) as s:
             s.connect((parsed_url.netloc, 443))
             cert = s.getpeercert()
+            print(cert)
+
         issuer = dict(x[0] for x in cert["issuer"])
         issuerOrganizationName = issuer["organizationName"]
 
@@ -214,7 +217,7 @@ def open_ports(url):
             if result == 0:
                 logging.info(f" - Port is opened - {host}:{port}")
                 return phishing
-            logging.info(f" - Port is close - {host}:{port}")
+            logging.info(f" - Port is closed - {host}:{port}")
     return legitimate
 
 
@@ -559,18 +562,26 @@ def collect_urls():
     logging.info(f"######### Start for {words_num} words #########")
     r = RandomWords()
     words = [r.get_random_word() for i in range(words_num)]
+
+    sentences = []
+    for n in range(15):
+        # Generate list, each item with two words
+        sentences.append(' '.join([words[random.randint(0,len(words)-1)] for i in range(2)]))
+    print(sentences)
+
     urls = set()
     with open("URLs.txt", "a") as f:
-        for w in words:
-            w_urls = set(search(w, num_results=10))
+        for s in sentences:
+            w_urls = set(search(s, num_results=10))
             urls.update(w_urls)
             for url in w_urls:
                 f.write("%s\n" % url)
             # workaround for 429 Client Error: Too Many Requests for url
-            time.sleep(260)
+            time.sleep(300)
 
     logging.info("######### End #########")
     logging.info("####  collect_urls - collected {} URLS ####".format(len(urls)))
+
 
 
 def get_list_features(url):
@@ -727,6 +738,7 @@ def create_csv():
                 logging.info("####  Skipping - {phishing_url}  ####")
                 continue
             feature_list.append(phishing)
+            logging.info(f"### {phishing_url} - {feature_list} ###")
             writer.writerow(feature_list)
 
 
@@ -738,7 +750,7 @@ def main():
         datefmt="%d-%b-%y %H:%M:%S",
         handlers=[logging.FileHandler("debug.log", mode="a"), logging.StreamHandler()],
     )
-    create_csv()
+    # create_csv()
     # create_df()
     # collect_urls()
     # logging.info(having_Sub_Domain("https://www.google.co.il.ru"))
@@ -752,6 +764,8 @@ def main():
     # logging.info(shortining_Service("https://tinyurl.com/4sbr2usn"))
     # logging.info(url_length("https://www.google.com/"))
     # logging.info(having_ip_address("https://www.google.com/"))
+    # logging.info(SSLfinal_State("https://alareentading-catalog.page.tl/"))
+
     # logging.info(SSLfinal_State("https://www.GeoTrust.com"))
     # logging.info(domain_registration_length("https://www.google.com"))
     # logging.info(check_favicon("https://www.tripadvisor.com/ShowUserReviews-g1152699-d6148508-r590504727-Ye_Shi_Fermented_Egg-Kinmen.html"))
