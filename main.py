@@ -38,12 +38,7 @@ def having_ip_address(url):
 # 4.1.2 URL_Length
 def url_length(url):
     logging.info("URL_Length: " + url)
-    if len(url) < 54:
-        return legitimate
-    elif len(url) > 75:
-        return phishing
-    else:
-        return suspicious
+    return len(url)
 
 
 # 3
@@ -58,34 +53,24 @@ def shortining_Service(url):
 
 
 # 4
-# 4.1.4 having_At_Symbol
+# 4.1.4 Count_at_Symbol
 def having_At_Symbol(url):
     logging.info("having_At_Symbol: " + url)
-    if "@" in url:
-        return phishing
-    else:
-        return legitimate
+    return url.count("@")
 
 
 # 5
 # 4.1.5 double_slash_redirecting
 def double_slash_redirecting(url):
     logging.info("double_slash_redirecting: " + url)
-    if "//" in url[7:]:
-        return phishing
-    else:
-        return legitimate
-
+    return url[7:].count("//")
 
 # 6
 # 4.1.6 Prefix_Suffix
 def prefix_suffix(url):
     logging.info("prefix_suffix " + url)
     parsed_url = urlparse(url)
-    if "-" in parsed_url.netloc:
-        return phishing
-    else:
-        return legitimate
+    return parsed_url.netloc.count("-")
 
 
 # 7
@@ -94,13 +79,7 @@ def having_Sub_Domain(url):
     logging.info("having_Sub_Domain " + url)
     parsed_url = urlparse(url)
     # The first dot after the “www” is omitted
-    dot_number = parsed_url.netloc.count(".") - 1
-    if dot_number == 1:
-        return legitimate
-    elif dot_number > 2:
-        return phishing
-    else:
-        return suspicious
+    return parsed_url.netloc.count(".") - 1
 
 
 # 8
@@ -108,6 +87,8 @@ def having_Sub_Domain(url):
 def SSLfinal_State(url):
     logging.info("SSLfinal_State: " + url)
     parsed_url = urlparse(url)
+    # Return none for no certification
+    cert = "None"
     if parsed_url.scheme == "https":
         logging.info(" - url starts with https")
 
@@ -115,70 +96,19 @@ def SSLfinal_State(url):
         with ctx.wrap_socket(socket.socket(), server_hostname=parsed_url.netloc) as s:
             s.connect((parsed_url.netloc, 443))
             cert = s.getpeercert()
-            print(cert)
-
-        issuer = dict(x[0] for x in cert["issuer"])
-        issuerOrganizationName = issuer["organizationName"]
-
-        trustedOrgList = [
-            "GeoTrust",
-            "DigiCert Inc",
-            "GoDaddy",
-            "Network Solutions",
-            "Thawte",
-            "Comodo",
-            "Doster",
-            "VeriSign",
-        ]
-        if issuerOrganizationName in trustedOrgList:
-            logging.info(
-                f" - Issue {issuerOrganizationName} is in trusted list: {trustedOrgList}"
-            )
-
-            # Calculate time
-            seconds_since_epoch = time.time()
-            # current_time = time.ctime(seconds_since_epoch)
-            cert_exp_date = time.strptime(
-                cert["notAfter"][:-4], "%b %d %H:%M:%S %Y"
-            )  # convert to time format
-            delta_in_sec = time.mktime(cert_exp_date) - seconds_since_epoch
-            delta_in_years = delta_in_sec / 60 / 60 / 24 / 365.25
-
-            if delta_in_years >= 1.0:
-                logging.info(" - Cert exp date is >= 1 year")
-                return legitimate
-            else:
-                logging.info(" - Cert exp date is < 1 year")
-                return suspicious
-        else:
-            logging.info(
-                f" - Issue {issuerOrganizationName} is not in trusted list: {trustedOrgList}"
-            )
-            return suspicious
-    else:
-        logging.info(" - url doesn't start with https")
-        return phishing
+    return cert
 
 
 # 9
 # 4.1.9 domain_registration_length
 def domain_registration_length(url):
     logging.info("domain_registration_length: " + url)
-    now = datetime.now()
+    w = "None"
     try:
         w = whois.whois(url)
-        if type(w.expiration_date) == list:
-            domain_exp_date = w.expiration_date[0]
-        else:
-            domain_exp_date = w.expiration_date
-        time_delta = domain_exp_date - now
-        if time_delta.days > 365:
-            return legitimate
-        else:
-            return phishing
     except Exception as e:
         logging.error(e)
-        return phishing
+    return w
 
 
 # 10
@@ -207,6 +137,7 @@ def open_ports(url):
     logging.info("open_ports: " + url)
     parsed_url = urlparse(url)
     port_list = [21, 22, 23, 445, 1433, 1521, 3306, 3389]
+    opened_ports = []
     host = socket.gethostbyname(parsed_url.netloc)
     logging.info(host)
     for port in port_list:
@@ -216,9 +147,9 @@ def open_ports(url):
             result = s.connect_ex((host, port))
             if result == 0:
                 logging.info(f" - Port is opened - {host}:{port}")
-                return phishing
+                opened_ports.append(port)
             logging.info(f" - Port is closed - {host}:{port}")
-    return legitimate
+    return opened_ports
 
 
 # 12
@@ -230,7 +161,7 @@ def https_token(url):
         return phishing
     return legitimate
 
-
+# help function
 def tag(source_tag, get_tag, soup, url_netloc):
     tags = soup.find_all(source_tag)
     count = len(tags)  # if tag domain is empty it means the same domain
@@ -258,16 +189,8 @@ def tag(source_tag, get_tag, soup, url_netloc):
 def request_url(url):
     logging.info("request_url: " + url)
     parsed_url = urlparse(url)
-    home_page = requests.get(url, timeout=20)
-    # try:
-    #     home_page = requests.get(url)
-    #     print(">>>")
-    # except:
-    #     home_page = requests.get(url, allow_redirects=False, headers=headers)
-    #     print(" - ------ ")
-    # print(f' >>>>>>>>> {home_page.status_code}')
+    home_page = requests.get(url, timeout=20, verify=False)
     soup = BeautifulSoup(home_page.content, "html.parser")
-
     count_img, phishy_img_count = tag("img", "src", soup, parsed_url.netloc)
     count_source, phishy_source_count = tag("source", "src", soup, parsed_url.netloc)
     count_audio, phishy_audio_count = tag("audio", "src", soup, parsed_url.netloc)
@@ -276,12 +199,10 @@ def request_url(url):
     phishing_count = phishy_img_count + phishy_source_count + phishy_audio_count
     logging.info(f" - count_all: {count_all}, phish_count: {phishing_count}")
     try:
-        if phishing_count / count_all > 0.5:
-            return phishing
+        return (phishing_count / count_all)
     except Exception as e:
         logging.error(f" - devision error - {e}")
-        pass
-    return legitimate
+        return 0
 
 
 # 14
@@ -289,22 +210,16 @@ def request_url(url):
 def url_of_anchor(url):
     logging.info("url_of_anchor: " + url)
     parsed_url = urlparse(url)
-    home_page = requests.get(url, timeout=20)
+    home_page = requests.get(url, timeout=20, verify=False)
     soup = BeautifulSoup(home_page.content, "html.parser")
 
     count_a, phishy_a_count = tag("a", "href", soup, parsed_url.netloc)
-
     logging.info(f"  count_a: {count_a}, phish_count: {phishy_a_count}")
     try:
-        result = phishy_a_count / count_a
-        if result > 0.67:
-            return phishing
-        elif result <= 0.67 and result >= 0.31:
-            return suspicious
+        return (phishy_a_count / count_a)
     except Exception as e:
         logging.error(f" - devision error - {e}")
-        pass
-    return legitimate
+        return 0
 
 
 # 15
@@ -312,9 +227,8 @@ def url_of_anchor(url):
 def links_in_tags(url):
     logging.info("links_in_tags: " + url)
     parsed_url = urlparse(url)
-    home_page = requests.get(url, timeout=20)
+    home_page = requests.get(url, timeout=20, verify=False)
     soup = BeautifulSoup(home_page.content, "html.parser")
-
     count_meta, phishy_meta_count = tag("meta", "content", soup, parsed_url.netloc)
     count_script, phishy_script_count = tag("script", "src", soup, parsed_url.netloc)
     count_link, phishy_link_count = tag("link", "href", soup, parsed_url.netloc)
@@ -323,15 +237,10 @@ def links_in_tags(url):
     phishing_count = phishy_meta_count + phishy_script_count + phishy_link_count
     logging.info(f" - count_all: {count_all}, phish_count: {phishing_count}")
     try:
-        result = phishing_count / count_all
-        if result > 0.81:
-            return phishing
-        elif result <= 0.81 and result >= 0.17:
-            return suspicious
+        return (phishing_count / count_all)
     except Exception as e:
         logging.error(f" - devision error - {e}")
-        pass
-    return legitimate
+        return 0
 
 
 # 16
@@ -339,7 +248,7 @@ def links_in_tags(url):
 def sfh(url):
     logging.info("sfh: " + url)
     parsed_url = urlparse(url)
-    home_page = requests.get(url, timeout=20)
+    home_page = requests.get(url, timeout=20, verify=False)
     soup = BeautifulSoup(home_page.content, "html.parser")
 
     tags = soup.find_all("form")
@@ -359,7 +268,7 @@ def sfh(url):
 # 4.2.5 Submitting_to_email
 def submitting_to_email(url):
     logging.info("submitting_to_email: " + url)
-    home_page = requests.get(url, timeout=20)
+    home_page = requests.get(url, timeout=20, verify=False)
     soup = BeautifulSoup(home_page.content, "html.parser")
 
     tags = soup.find_all("form")
@@ -393,19 +302,16 @@ def abnormal_url(url):
 # 4.3.1 Redirect
 def redirect(url):
     logging.info("redirect: " + url)
-    r = requests.get(url, timeout=20)
+    r = requests.get(url, timeout=20, verify=False)
     logging.info(r.history)
-    if len(r.history) > 1:
-        return suspicious
-    else:
-        return legitimate
+    return r.history
 
 
 # 20
 # 4.3.2 on_mouseover
 def on_mouseover(url):
     logging.info("on_mouseover: " + url)
-    home_page = requests.get(url, timeout=20)
+    home_page = requests.get(url, timeout=20, verify=False)
     # window.defaultStatus/window.status should be used for changing the status bar
     # onMouseOver must use one of them directly or via JavaScript
     w_status = re.findall(r"window.status", home_page.text)
@@ -419,7 +325,7 @@ def on_mouseover(url):
 # 4.3.3 RightClick
 def right_click(url):
     logging.info("right_click: " + url)
-    home_page = requests.get(url, timeout=20)
+    home_page = requests.get(url, timeout=20, verify=False)
     right_click_event = re.findall(r"event.button ?== ?2", home_page.text)
     if right_click_event:
         return phishing
@@ -430,7 +336,7 @@ def right_click(url):
 # 4.3.4 popUpWidnow
 def popUpWidnow(url):
     logging.info("popUpWidnow: " + url)
-    home_page = requests.get(url, timeout=20)
+    home_page = requests.get(url, timeout=20, verify=False)
     # Checks only window popup and not window popup with a form
     popup_win = re.findall(r"window.open", home_page.text)
     if popup_win:
@@ -442,7 +348,7 @@ def popUpWidnow(url):
 # 4.3.5 Iframe
 def Iframe(url):
     logging.info("Iframe: " + url)
-    home_page = requests.get(url, timeout=20)
+    home_page = requests.get(url, timeout=20, verify=False)
     soup = BeautifulSoup(home_page.content, "html.parser")
 
     # frameBorder is deprected in html5
@@ -466,13 +372,10 @@ def age_of_domain(url):
         else:
             domain_creation_date = w.creation_date
         time_delta = now - domain_creation_date
-        if time_delta.days > 30 * 6:  # 30*6 = ~6 months
-            return legitimate
-        else:
-            return phishing
+        return time_delta.days
     except Exception as e:
         logging.error(e)
-        return phishing
+        return 0
 
 
 # 25
@@ -495,7 +398,7 @@ def DNSRecord(url):
 def web_traffic(url):
     logging.info("web_traffic: " + url)
     home_page = requests.get(
-        "http://data.alexa.com/data?cli=10&dat=s&url=" + url, timeout=20
+        "http://data.alexa.com/data?cli=10&dat=s&url=" + url, timeout=20, verify=False
     )
     pattern = r'REACH RANK="(.*?)"/'
     match = re.search(pattern, home_page.text)
@@ -520,7 +423,7 @@ def google_index(url):
     logging.info("google_index: " + url)
     query = f"site:{url}"
     params = {"q": query}
-    response = requests.get("https://www.google.com/search", params=params, timeout=20)
+    response = requests.get("https://www.google.com/search", params=params, timeout=20, verify=False)
 
     if response.status_code == 200:
         if "No results found for" in response.text:
@@ -546,7 +449,7 @@ def google_index(url):
 #     year = "2017"
 #     month = "01"
 #     url = f"https://phishtank.org/stats/{year}/{month}/"
-#     response = requests.get(url, timeout=20)
+#     response = requests.get(url, timeout=20, verify=False)
 
 #     if response.status_code == 200:
 #         soup = BeautifulSoup(response.content, "html.parser")
@@ -665,81 +568,75 @@ def create_df():
     print(df)
 
 
+def get_urls_list_features(urls, url_type, writer):
+    id = 1
+    skipped = 0
+    for url in urls:
+        feature_list = []
+        feature_list.append(id)
+        feature_list.append(url)
+        try:
+            feature_list += get_list_features(url)
+            id += 1
+            feature_list.append(url_type)
+            logging.info(f"### {url} - {feature_list} ###")
+            writer.writerow(feature_list)
+        except Exception as e:
+            logging.error(e)
+            skipped += 1
+            logging.info(f"\n****************  Skipping - {url}   ****************\n")
+        total = id + skipped
+        logging.info(f"\n****************  Skipped: {skipped} From: {total}  ****************\n")
+
+
 def create_csv():
     header = [
         "id",
         "url",
-        "having_IP_Address",
-        "URL_Length",
-        "Shortining_Service",
-        "having_At_Symbol",
-        "double_slash_redirecting",
-        "Prefix_Suffix",
-        "having_Sub_Domain",
-        "SSLfinal_State",
-        "Domain_registeration_length",
-        "Favicon",
-        "port",
-        "HTTPS_token",
-        "Request_URL",
-        "URL_of_Anchor",
-        "Links_in_tags",
-        "SFH",
-        "Submitting_to_email",
-        "Abnormal_URL",
-        "Redirect",
-        "on_mouseover",
-        "RightClick",
-        "popUpWidnow",
-        "Iframe",
-        "age_of_domain",
-        "DNSRecord",
-        "web_traffic",
-        "Google_Index",
+        "having_IP_Address", #1
+        "URL_Length", #2
+        "Shortining_Service", #3
+        "having_At_Symbol", #4
+        "double_slash_redirecting", #5
+        "Prefix_Suffix", #6
+        "having_Sub_Domain", #7
+        "SSLfinal_State", #8
+        "Domain_registeration_length", #9
+        "Favicon", #10
+        "port", #11
+        "HTTPS_token", #12
+        "Request_URL", #13
+        "URL_of_Anchor", #14
+        "Links_in_tags", #15
+        "SFH", #16
+        "Submitting_to_email", #17
+        "Abnormal_URL", #18
+        "Redirect", #19
+        "on_mouseover", #20
+        "RightClick", #21
+        "popUpWidnow", #22
+        "Iframe", #23
+        "age_of_domain", #24
+        "DNSRecord", #25
+        # "web_traffic",
+        "Google_Index", #26
         "Result",
     ]
     with open(
-        "my_local_dataset.csv", "a", encoding="UTF8", newline="", buffering=1
+        "dynamic_dataset.csv", "a", encoding="UTF8", newline="", buffering=1
     ) as f:
         writer = csv.writer(f)
         writer.writerow(header)
-        id = 1
 
         # Update csv file for each legitimate URL
-        legit_url_file = open("URLs.txt", "r")
-        legit_urls = legit_url_file.readlines()
-        for legit_url in legit_urls:
-            feature_list = []
-            feature_list.append(id)
-            feature_list.append(legit_url)
-            try:
-                feature_list += get_list_features(legit_url)
-                id += 1
-            except Exception as e:
-                logging.error(e)
-                logging.info(f"####  Skipping - {legit_url}  ####")
-                continue
-            feature_list.append(legitimate)
-            logging.info(f"### {legit_url} - {feature_list} ###")
-            writer.writerow(feature_list)
+        # legit_url_file = open("URLs.txt", "r")
+        # legit_urls = legit_url_file.readlines()
+        # get_urls_list_features(legit_urls,legitimate,writer)
 
         # Update csv file for each phishing URL
-        phishing_url_file = open("phishing_urls.txt", "r")
+        phishing_url_file = open("march-17-phishing-urls.txt", "r")
         phishing_urls = phishing_url_file.readlines()
-        for phishing_url in phishing_urls:
-            feature_list = []
-            feature_list.append(id)
-            feature_list.append(phishing_url)
-            try:
-                feature_list += get_list_features(phishing_url)
-                id += 1
-            except Exception as e:
-                logging.error(e)
-                logging.info("####  Skipping - {phishing_url}  ####")
-                continue
-            feature_list.append(phishing)
-            logging.info(f"### {phishing_url} - {feature_list} ###")
-            writer.writerow(feature_list)
+        get_urls_list_features(phishing_urls,phishing,writer)
 
 
 # Verification
@@ -750,7 +647,7 @@ def main():
         datefmt="%d-%b-%y %H:%M:%S",
         handlers=[logging.FileHandler("debug.log", mode="a"), logging.StreamHandler()],
     )
-    # create_csv()
+    create_csv()
     # create_df()
     # collect_urls()
     # logging.info(having_Sub_Domain("https://www.google.co.il.ru"))
